@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>SCP Server (Live)</title>
+  <style>
+    body {
+      font-family: Consolas, monospace;
+      background: #0f172a;
+      color: #22c55e;
+      padding: 20px;
+    }
+    h1 { color: #4ade80; }
+    #log {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 10px;
+      height: 500px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>🖥️ SCP Server (Live Output)</h1>
+  <div id="log">Connecting...</div>
+
+  <script>
+    const logDiv = document.getElementById('log');
+    const ws = new WebSocket(`ws://${location.host}/server`);
+
+    ws.onmessage = (event) => {
+      logDiv.textContent += '\n' + event.data;
+      logDiv.scrollTop = logDiv.scrollHeight;
+    };
+
+    ws.onopen = () => logDiv.textContent = '✅ Connected to Live Server Process\n';
+    ws.onclose = () => logDiv.textContent += '\n❌ Connection closed';
+  </script>
+</body>
+</html>
