@@ -38,10 +38,18 @@ int main() {
     SOCKET sock;
     struct sockaddr_in server_addr;
     HANDLE thread;
+    char connection_code[50];
 
     printf("-------------------------------------------\n");
-    printf("  SCP CLIENT v1.1 (Windows Dev-C++)\n");
+    printf("  SCP CLIENT v1.1 (Connection Code)\n");
     printf("-------------------------------------------\n\n");
+
+    // Get connection code from user
+    printf("Enter connection code: ");
+    fgets(connection_code, sizeof(connection_code), stdin);
+    connection_code[strcspn(connection_code, "\n")] = 0;
+
+    printf("Connecting with code: %s\n\n", connection_code);
 
     WSAStartup(MAKEWORD(2, 2), &wsa);
     sock = socket(AF_INET, SOCK_STREAM, 0);
@@ -59,9 +67,15 @@ int main() {
 
     thread = (HANDLE)_beginthreadex(0, 0, receive_thread, (void *)&sock, 0, 0);
 
-    // Send HELLO message
+    // Send connection code first
+    char code_msg[BUFFER_SIZE];
+    create_scp_message(code_msg, "AUTH", 1, connection_code);
+    send(sock, code_msg, strlen(code_msg), 0);
+
+    // Send HELLO message after authentication
+    Sleep(1000); // Small delay to ensure code is processed
     char hello_msg[BUFFER_SIZE];
-    create_scp_message(hello_msg, "HELLO", 1, "Client_Connected");
+    create_scp_message(hello_msg, "HELLO", 2, "Client_Authenticated");
     send(sock, hello_msg, strlen(hello_msg), 0);
 
     while (1) {
