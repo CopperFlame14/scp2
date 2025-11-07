@@ -1,42 +1,162 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>SCP Client (Live)</title>
-  <style>
-    body {
-      font-family: Consolas, monospace;
-      background: #0f172a;
-      color: #38bdf8;
-      padding: 20px;
-    }
-    h1 { color: #06b6d4; }
-    #log {
-      background: #1e293b;
-      border: 1px solid #334155;
-      border-radius: 8px;
-      padding: 10px;
-      height: 500px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SCP Client</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #00ff00;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px;
+            background: #2a2a2a;
+            border-radius: 8px;
+        }
+        .connection-panel {
+            background: #330000;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            border: 1px solid #ff4444;
+        }
+        .terminal {
+            background: #000;
+            padding: 20px;
+            border-radius: 5px;
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #333;
+            margin-bottom: 20px;
+        }
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        input {
+            flex: 1;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid #ff4444;
+            color: #00ff00;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+        }
+        button {
+            padding: 10px 20px;
+            background: #ff4444;
+            color: #000;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:disabled {
+            background: #666;
+            cursor: not-allowed;
+        }
+        .back-btn {
+            background: #666;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
-  <h1>📱 SCP Client (Live Output)</h1>
-  <div id="log">Connecting...</div>
+    <a href="/" class="back-btn">← Back to Home</a>
+    
+    <div class="header">
+        <h1>💻 SCP CLIENT</h1>
+        <div class="connection-panel">
+            <input type="text" id="codeInput" placeholder="Enter connection code">
+            <button id="connectBtn">Connect</button>
+            <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+    </div>
 
-  <script>
-    const logDiv = document.getElementById('log');
-    const ws = new WebSocket(`ws://${location.host}/client`);
+    <div class="terminal" id="terminal"></div>
 
-    ws.onmessage = (event) => {
-      logDiv.textContent += '\n' + event.data;
-      logDiv.scrollTop = logDiv.scrollHeight;
-    };
+    <div class="input-group">
+        <input type="text" id="messageInput" placeholder="Type message to server..." disabled>
+        <button id="sendBtn" disabled>Send</button>
+    </div>
 
-    ws.onopen = () => logDiv.textContent = '✅ Connected to Live Client Process\n';
-    ws.onclose = () => logDiv.textContent += '\n❌ Connection closed';
-  </script>
+    <script>
+        let ws = null;
+        const terminal = document.getElementById('terminal');
+
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            const code = document.getElementById('codeInput').value.trim();
+            if (!code) {
+                alert('Please enter a connection code');
+                return;
+            }
+
+            ws = new WebSocket('ws://localhost:8080/client');
+            
+            ws.onopen = () => {
+                log('Connecting to server...');
+                log(`Using code: ${code}`);
+                // Send connection code as first message
+                ws.send(`AUTH:${code}`);
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                document.getElementById('messageInput').disabled = false;
+            };
+
+            ws.onmessage = (event) => {
+                log(event.data);
+            };
+
+            ws.onclose = () => {
+                log('Disconnected from server');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('sendBtn').disabled = true;
+                document.getElementById('messageInput').disabled = true;
+            };
+        });
+
+        document.getElementById('disconnectBtn').addEventListener('click', () => {
+            if (ws) {
+                ws.close();
+            }
+        });
+
+        document.getElementById('sendBtn').addEventListener('click', sendMessage);
+        document.getElementById('messageInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            if (message && ws) {
+                ws.send(message);
+                log(`YOU: ${message}`);
+                input.value = '';
+            }
+        }
+
+        function log(message) {
+            terminal.innerHTML += message + '\n';
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Initial log
+        log('SCP Client Terminal\nEnter connection code and click Connect to start...');
+    </script>
 </body>
 </html>
