@@ -21,6 +21,7 @@ void parse_scp_message(const char *buffer, char *type, int *id, char *payload) {
 unsigned __stdcall receive_thread(void *socket_desc) {
     SOCKET client = *(SOCKET *)socket_desc;
     char buffer[BUFFER_SIZE];
+    int authenticated = 0;
 
     while (1) {
         memset(buffer, 0, sizeof(buffer));
@@ -35,16 +36,31 @@ unsigned __stdcall receive_thread(void *socket_desc) {
         int msg_id;
         parse_scp_message(buffer, msg_type, &msg_id, payload);
 
-        if (strcmp(msg_type, "HELLO") == 0) {
+        // Handle authentication
+        if (strcmp(msg_type, "AUTH") == 0) {
+            printf("Client authentication attempt with code: %s\n", payload);
+            // Here you can add code validation logic
+            char ack[BUFFER_SIZE];
+            create_scp_message(ack, "AUTH_ACK", msg_id, "CODE_ACCEPTED");
+            send(client, ack, strlen(ack), 0);
+            authenticated = 1;
+            printf("[SERVER] Client authenticated successfully\n");
+        }
+        else if (strcmp(msg_type, "HELLO") == 0 && authenticated) {
             char ack[BUFFER_SIZE];
             create_scp_message(ack, "ACK", msg_id, "CONNECTION_OK");
             send(client, ack, strlen(ack), 0);
             printf("[SERVER] SEND: %s\n", ack);
-        } else if (strcmp(msg_type, "MSG") == 0) {
+        } else if (strcmp(msg_type, "MSG") == 0 && authenticated) {
             printf("Client says: %s\n", payload);
             char ack[BUFFER_SIZE];
             create_scp_message(ack, "ACK", msg_id, "MSG_RECEIVED");
             send(client, ack, strlen(ack), 0);
+        } else if (!authenticated) {
+            printf("[SERVER] Rejecting message - client not authenticated\n");
+            char reject[BUFFER_SIZE];
+            create_scp_message(reject, "ERROR", msg_id, "NOT_AUTHENTICATED");
+            send(client, reject, strlen(reject), 0);
         }
     }
     closesocket(client);
@@ -59,8 +75,10 @@ int main() {
     HANDLE thread;
 
     printf("-------------------------------------------\n");
-    printf("  SCP SERVER v1.1 (Windows Dev-C++)\n");
+    printf("  SCP SERVER v1.1 (Authentication)\n");
     printf("-------------------------------------------\n\n");
+
+    printf("?? Server started. Waiting for client connection with valid code...\n\n");
 
     WSAStartup(MAKEWORD(2, 2), &wsa);
     server = socket(AF_INET, SOCK_STREAM, 0);
@@ -76,7 +94,7 @@ int main() {
     c = sizeof(struct sockaddr_in);
     client = accept(server, (struct sockaddr *)&client_addr, &c);
 
-    printf("? Client connected!\n\n");
+    printf("? Client connected! Waiting for authentication...\n\n");
 
     thread = (HANDLE)_beginthreadex(0, 0, receive_thread, (void *)&client, 0, 0);
 
